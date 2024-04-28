@@ -39,6 +39,12 @@ export interface IGenerateOptions {
       Instance of @neo4j/graphql-ogm
   */
     ogm: OGM;
+    /**
+     * Enhance default configuration with plugins or additional configuration
+     * @param defaultConfig Default configuration
+     * @returns The new configuration
+     */
+    config?: (defaultConfig: Types.GenerateOptions) => Types.GenerateOptions
 }
 
 /*  This function will generate TypeScript aggregate input types
@@ -131,7 +137,7 @@ function hasConnectOrCreate(node: any, ogm: OGM): boolean {
     return false;
 }
 
-async function generate(options: IGenerateOptions): Promise<undefined | string> {
+async function generate({ config: configFn = (cf) => cf, ...options }: IGenerateOptions): Promise<undefined | string> {
     await options.ogm.init();
 
     const config: Types.GenerateOptions = {
@@ -150,7 +156,8 @@ async function generate(options: IGenerateOptions): Promise<undefined | string> 
         },
     };
 
-    const output = await codegen(config);
+    const finalConfig = configFn(config);
+    const output = await codegen(finalConfig);
 
     const content: string[] = [`import type { SelectionSetNode, DocumentNode } from "graphql";`, output];
 
