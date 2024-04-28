@@ -41,7 +41,7 @@ const excludedDirectives = [
     "settable",
 ];
 
-export function filterDocument(typeDefs: Neo4jGraphQLConstructor["typeDefs"]): DocumentNode {
+export function filterDocument(typeDefs: Neo4jGraphQLConstructor["typeDefs"], excludeAuthentication = true): DocumentNode {
     // hack to keep aggregation enabled for OGM
     const schemaExtension = `
     extend schema @query(read: true, aggregate: true)
@@ -50,6 +50,8 @@ export function filterDocument(typeDefs: Neo4jGraphQLConstructor["typeDefs"]): D
     const merged = mergeTypeDefs(
         Array.isArray(typeDefs) ? (typeDefs as string[]).concat(schemaExtension) : [typeDefs as string, schemaExtension]
     );
+
+    const parsedExcludedDirectives = excludeAuthentication === false ? excludedDirectives.slice(3) : excludedDirectives;
 
     return {
         ...merged,
@@ -84,7 +86,7 @@ export function filterDocument(typeDefs: Neo4jGraphQLConstructor["typeDefs"]): D
                         {
                             ...f,
                             directives: f.directives
-                                ?.filter((x) => !excludedDirectives.includes(x.name.value))
+                                ?.filter((x) => !parsedExcludedDirectives.includes(x.name.value))
                                 .map((x) => {
                                     if (x.name.value === "relationship") {
                                         const args = (
@@ -108,7 +110,7 @@ export function filterDocument(typeDefs: Neo4jGraphQLConstructor["typeDefs"]): D
                 ...res,
                 {
                     ...def,
-                    directives: def.directives?.filter((x) => !excludedDirectives.includes(x.name.value)),
+                    directives: def.directives?.filter((x) => !parsedExcludedDirectives.includes(x.name.value)),
                     fields: def.kind === Kind.UNION_TYPE_DEFINITION ? [] : getFields(def),
                 },
             ];
