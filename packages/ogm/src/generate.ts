@@ -185,7 +185,7 @@ async function generate({ config: configFn = (cf) => cf, ...options }: IGenerate
             ${aggregationInput[0]}
 
             export type ${normalizedNodeName}SelectionSet = SelectionSetObject<${normalizedNodeName},${normalizedNodeName}Resolvers>;
-            export type InferFrom${normalizedNodeName}SelectionSet<TSelectionSet extends ${normalizedNodeName}SelectionSet>  = SelectionSetObject<${normalizedNodeName},${normalizedNodeName}Resolvers>;
+            export type InferFrom${normalizedNodeName}SelectionSet<TSelectionSet extends ${normalizedNodeName}SelectionSet>  = InferFromSelectionSetObject<${normalizedNodeName},${normalizedNodeName}Resolvers,TSelectionSet>;
 
             export declare class ${modelName} {
                 public find(args?: {
