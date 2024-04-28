@@ -23,6 +23,7 @@ import * as typescriptPlugin from "@graphql-codegen/typescript";
 import * as fs from "fs";
 import * as graphql from "graphql";
 import prettier from "prettier";
+import findSafeGenerated from "./find-safe";
 import type { OGM } from "./index";
 import { upperFirst } from "./utils/upper-first";
 
@@ -159,7 +160,7 @@ async function generate({ config: configFn = (cf) => cf, ...options }: IGenerate
     const finalConfig = configFn(config);
     const output = await codegen(finalConfig);
 
-    const content: string[] = [`import type { SelectionSetNode, DocumentNode } from "graphql";`, output];
+    const content: string[] = [`import type { SelectionSetNode, DocumentNode } from "graphql";`, findSafeGenerated, output];
 
     const aggregateSelections: any = {};
     const modeMap: Record<string, string> = {};
@@ -183,6 +184,9 @@ async function generate({ config: configFn = (cf) => cf, ...options }: IGenerate
             ${Object.values(aggregationInput[1]).join("\n")}
             ${aggregationInput[0]}
 
+            export type ${normalizedNodeName}SelectionSet = SelectionSetObject<${normalizedNodeName},${normalizedNodeName}Resolvers>;
+            export type InferFrom${normalizedNodeName}SelectionSet<TSelectionSet extends ${normalizedNodeName}SelectionSet>  = SelectionSetObject<${normalizedNodeName},${normalizedNodeName}Resolvers>;
+
             export declare class ${modelName} {
                 public find(args?: {
                     where?: ${normalizedNodeName}Where;
@@ -193,6 +197,15 @@ async function generate({ config: configFn = (cf) => cf, ...options }: IGenerate
                     context?: any;
                     rootValue?: any;
                 }): Promise<${normalizedNodeName}[]>
+                public findSafe<TSelectionSet extends ${normalizedNodeName}SelectionSet>(args?: {
+                    where?: ${normalizedNodeName}Where;
+                    ${hasFulltextArg ? `fulltext?: ${normalizedNodeName}Fulltext;` : ""}
+                    options?: ${normalizedNodeName}Options;
+                    selectionSet?: TSelectionSet;
+                    args?: any;
+                    context?: any;
+                    rootValue?: any;
+                }): Promise<Prettify<InferFrom${normalizedNodeName}SelectionSet<TSelectionSet>>[]>
                 public create(args: {
                     input: ${normalizedNodeName}CreateInput[];
                     selectionSet?: string | DocumentNode | SelectionSetNode;
