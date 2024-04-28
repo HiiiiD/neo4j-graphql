@@ -17,12 +17,16 @@
  * limitations under the License.
  */
 
+import type { Neo4jGraphQLContext } from "@neo4j/graphql";
 import type { DocumentNode, GraphQLSchema, SelectionSetNode } from "graphql";
 import { graphql, parse, print } from "graphql";
-import type { GraphQLOptionsArg, GraphQLWhereArg, DeleteInfo } from "../types";
-import type { Neo4jGraphQLContext } from "@neo4j/graphql";
+import { debuglog } from 'util';
+import type { DeleteInfo, GraphQLOptionsArg, GraphQLWhereArg } from "../types";
+import { buildGQLOptions } from "../utils/graphql-options";
 
 type Neo4jGraphQLOGMContext = Omit<Neo4jGraphQLContext, "jwt" | "token">;
+
+const logger = debuglog('@neo4j/graphql-ogm');
 
 function printSelectionSet(selectionSet: string | DocumentNode | SelectionSetNode): string {
     if (typeof selectionSet === "string") {
@@ -156,6 +160,50 @@ class Model {
         }
 
         return (result.data as any)[this.namePluralized] as T;
+    }
+
+    async findSafe<T = any[]>({
+        selectionSet = {},
+        ...otherProps
+    }: {
+        where?: GraphQLWhereArg;
+        fulltext?: any;
+        options?: GraphQLOptionsArg;
+        selectionSet?: Record<string, any>;
+        args?: any;
+        context?: any;
+        rootValue?: any;
+    } = {}): Promise<T> {
+        const recursive = (obj: Record<string, any>) => {
+            return Object.entries(obj)
+                .map(([k, v]) => {
+                    if (v === true) return k;
+                    const valueKeys = Object.keys(v);
+                    if (["where", "directed", "options", "after", "first", "sort"].some((v) => valueKeys.includes(v))) {
+                        const options = Object.entries(v)
+                            .filter(([k]) => ["where", "directed", "options", "after", "first", "sort"].includes(k))
+                            .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {});
+                        const { where: w, directed: d, options: o, after: a, first: f, sort: s, ...other } = v;
+                        return `${k} (${buildGQLOptions(options)}) {\n${recursive(other)}\n}`;
+                    }
+
+                    if (valueKeys.includes("on")) {
+                        const entries = Object.entries(v["on"])
+                            .map(([modelName, value]) => {
+                                return `... on ${modelName} {\n${recursive(value as Record<string, any>)}\n}`;
+                            })
+                            .join("\n");
+                        const { on, ...other } = v;
+                        return `${k} {\n${recursive(other)}\n${entries}\n}`;
+                    }
+
+                    return `${k} {\n${recursive(v)}\n}`;
+                })
+                .join("\n");
+        };
+        const stringifiedSelectionSet = recursive(selectionSet);
+        logger("FindSafe with Object Selection Set: %s and stringified %s", selectionSet, stringifiedSelectionSet);
+        return this.find({ selectionSet: `{${stringifiedSelectionSet}}`, ...otherProps });
     }
 
     async create<T = any>({
