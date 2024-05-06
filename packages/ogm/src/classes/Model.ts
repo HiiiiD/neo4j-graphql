@@ -17,12 +17,16 @@
  * limitations under the License.
  */
 
+import type { Neo4jGraphQLContext } from "@neo4j/graphql";
 import type { DocumentNode, GraphQLSchema, SelectionSetNode } from "graphql";
 import { graphql, parse, print } from "graphql";
-import type { GraphQLOptionsArg, GraphQLWhereArg, DeleteInfo } from "../types";
-import type { Neo4jGraphQLContext } from "@neo4j/graphql";
+import { debuglog } from 'util';
+import type { DeleteInfo, GraphQLOptionsArg, GraphQLWhereArg } from "../types";
+import generateSelectionSet from "../utils/generate-selection-set";
 
 type Neo4jGraphQLOGMContext = Omit<Neo4jGraphQLContext, "jwt" | "token">;
+
+const logger = debuglog('@neo4j/graphql-ogm');
 
 function printSelectionSet(selectionSet: string | DocumentNode | SelectionSetNode): string {
     if (typeof selectionSet === "string") {
@@ -156,6 +160,23 @@ class Model {
         }
 
         return (result.data as any)[this.namePluralized] as T;
+    }
+
+    async findSafe<T = any[]>({
+        selectionSet = {},
+        ...otherProps
+    }: {
+        where?: GraphQLWhereArg;
+        fulltext?: any;
+        options?: GraphQLOptionsArg;
+        selectionSet?: Record<string, any>;
+        args?: any;
+        context?: any;
+        rootValue?: any;
+    } = {}): Promise<T> {
+        const stringifiedSelectionSet = generateSelectionSet(selectionSet);
+        logger("FindSafe with Object Selection Set: %s and stringified %s", selectionSet, stringifiedSelectionSet);
+        return this.find({ selectionSet: `{${stringifiedSelectionSet}}`, ...otherProps });
     }
 
     async create<T = any>({

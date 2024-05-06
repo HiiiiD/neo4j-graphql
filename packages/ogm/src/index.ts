@@ -18,5 +18,8 @@
  */
 
 export * from "./classes";
-export { DeleteInfo, GraphQLOptionsArg, GraphQLWhereArg, GraphQLSortArg } from "./types";
+export { default as RawGQL } from './classes/RawGQL';
 export { default as generate } from "./generate";
+export { DeleteInfo, GraphQLOptionsArg, GraphQLSortArg, GraphQLWhereArg } from "./types";
+export { default as generateSelectionSet } from "./utils/generate-selection-set";
+
